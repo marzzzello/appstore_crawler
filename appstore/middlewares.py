@@ -4,9 +4,60 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from scrapy.downloadermiddlewares.retry import RetryMiddleware
+from scrapy.utils.response import response_status_message
+
+from twisted.internet import reactor, defer
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
+from time import sleep
+
+
+class TooManyRequestsRetryMiddleware(RetryMiddleware):
+    def __init__(self, crawler):
+        super(TooManyRequestsRetryMiddleware, self).__init__(crawler.settings)
+        self.crawler = crawler
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler)
+
+    async def process_response(self, request, response, spider):
+        if request.meta.get('dont_retry', False):
+            return response
+        elif response.status == 429:
+            try:
+                delay = int(response.headers.get('retry-after'))
+            except (TypeError, ValueError):
+                delay = 5
+
+            app_id = response.url.split('/')[-1].split('?')[0]
+            spider.logger.info(f'Got a 429 response for {app_id}. Sleeping {delay} secs..')
+
+            # Not working. After resuming a lot of failed requests and exceptions come
+            # deferred = defer.Deferred()
+            # reactor.callLater(delay, deferred.callback, None)
+            # spider.crawler.engine.pause()
+            # await deferred
+            # spider.crawler.engine.unpause()
+            # spider.logger.info(f'Resuming for {app_id}.')
+
+            # reason = response_status_message(response.status)
+            # return self._retry(await deferred, reason, spider) or response
+            spider.is_paused = True
+            sleep(1)
+            self.crawler.engine.pause()
+            sleep(delay)  # If the rate limit is renewed in a minute, put 60 seconds, and so on.
+            self.crawler.engine.unpause()
+            sleep(1)
+            spider.is_paused = False
+            reason = response_status_message(response.status)
+            return self._retry(request, reason, spider) or response
+        elif response.status in self.retry_http_codes:
+            reason = response_status_message(response.status)
+            return self._retry(request, reason, spider) or response
+        return response
 
 
 class AppstoreSpiderMiddleware:
