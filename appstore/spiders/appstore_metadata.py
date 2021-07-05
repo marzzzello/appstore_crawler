@@ -1,7 +1,7 @@
 import scrapy
 import json
-from urllib.parse import unquote, urlencode
-from time import sleep, time
+from urllib.parse import unquote, urlencode, parse_qs, urlsplit
+from time import time
 import os
 
 
@@ -97,10 +97,10 @@ class AppstoreMetaSpider(scrapy.Spider):
 
     def start_first_run(self, response):
         self.parseJWT(response)
-        return self.scrape_metadta()
+        return self.scrape_metadata()
 
-    def scrape_metadta(self):
-        base_url_amp = f'https://amp-api.apps.apple.com/v1/catalog/{self._country}/apps/'
+    def scrape_metadata(self):
+        base_url_amp = f'https://amp-api.apps.apple.com/v1/catalog/{self._country}/apps'
         header_auth = {'Authorization': 'Bearer ' + self._token}
 
         # curl https://apps.apple.com/us/app/whatsapp-messenger/id310633997
@@ -108,7 +108,6 @@ class AppstoreMetaSpider(scrapy.Spider):
         base_url_ua = f'https://apps.apple.com/{self._country}/app/'
         header_ua = {'User-Agent': self._UA}
 
-        params = self.get_params()
         while len(self._ids_amp) > 1 or len(self._ids_ua) > 1:
             if len(self._ids_ua) > 1:
                 app_id = self._ids_ua.pop()
@@ -116,11 +115,27 @@ class AppstoreMetaSpider(scrapy.Spider):
                 yield scrapy.Request(url_ua, self.parse_ua, headers=header_ua)
 
             if len(self._ids_amp) > 1:
-                app_id = self._ids_amp.pop()
-                url_amp = base_url_amp + str(app_id) + '?' + params
+                app_ids = set()
+                # get 100 ids
+                for ids in range(0, 100):
+                    try:
+                        app_ids.add(str(self._ids_amp.pop()))
+                    except KeyError:
+                        pass
+                url_amp = base_url_amp + '?' + self.get_params(ids=app_ids)
                 yield scrapy.Request(url_amp, self.parse_amp, headers=header_auth)
             # self.logger.debug(f'Added {done}/{len(self._ids)} requests to queue')
-        print('\n\n\n\nQueue done!\n\n\n\n')
+        print('\n\nQueue done!\n\n')
+
+        # for left_id in range(0, len(self._ids), 100):
+        #     right_id = left_id + 99
+        #     if right_id > len(self._ids) - 1:
+        #         right_id = len(self._ids) - 1
+
+        #     id_str = ",".join(str(self._ids[idx]) for idx in range(left_id, right_id + 1))
+        #     url_amp = base_url_amp + id_str + '&' + params
+
+        #     yield scrapy.Request(url_amp, self.parse_amp, headers=header_auth)
 
     def parseJWT(self, response):
         content = response.xpath("//meta[@name='web-experience-app/config/environment']/@content").get()
@@ -147,12 +162,32 @@ class AppstoreMetaSpider(scrapy.Spider):
         except AttributeError:
             os.makedirs(self._amp_dir, exist_ok=True)
             self._amp_dir_exists = True
-        app_id = response.url.split('/')[-1].split('?')[0]
-        filename = os.path.join(self._amp_dir, app_id + '.json')
-        with open(filename, 'wb') as f:
-            f.write(response.body)
-        self._num_ids_amp_done += 1
-        self.status(app_id, 'amp')
+        u = urlsplit(response.url)
+        app_id = u.path.split('/')[-1]
+        # app_id = response.url.split('/')[-1].split('?')[0]
+        if app_id == 'apps':
+            # multiple ids
+            app_ids_req = set(parse_qs(u.query)['ids'][0].split(','))
+            app_ids_res = set()
+            j = json.loads(response.body)
+
+            for app in j['data']:
+                app_ids_res.add(app['id'])
+                filename = os.path.join(self._amp_dir, app['id'] + '.json')
+                with open(filename, 'w') as f:
+                    json.dump({'data': [app]}, f)
+                self._num_ids_amp_done += 1
+                self.status(app['id'], 'amp')
+            diff = app_ids_req - app_ids_res
+            if len(diff) > 0:
+                self.logger.warning(f'Apps got requested but are not in response: {diff}')
+
+        else:
+            filename = os.path.join(self._amp_dir, app_id + '.json')
+            with open(filename, 'wb') as f:
+                f.write(response.body)
+            self._num_ids_amp_done += 1
+            self.status(app_id, 'amp')
 
     def status(self, app_id, api):
         self._last_ids[api] = app_id
@@ -171,7 +206,11 @@ class AppstoreMetaSpider(scrapy.Spider):
             self._last_status_time = time()
         print(status + '        ', end='\r')
 
-    def get_params(self):
+    def get_params(self, ids={}):
+        '''
+        Multiple app ids can be requested but without the include param.
+        Maximum is 100 ids
+        '''
         platforms = ['appletv', 'ipad', 'mac', 'watch', 'iphone']
         platforms.remove(self._platform)
         extend = [
@@ -207,6 +246,7 @@ class AppstoreMetaSpider(scrapy.Spider):
             'top-in-apps',
         ]
         params = {
+            'ids': ','.join(ids),
             'platform': self._platform,
             'additionalPlatforms': ','.join(platforms),
             'extend': ','.join(extend),
@@ -214,4 +254,9 @@ class AppstoreMetaSpider(scrapy.Spider):
             'limit[reviews]': 20,
             'l': self._locale,
         }
+        if ids is {}:
+            del params['ids']
+        else:
+            del params['include']
+
         return urlencode(params)
