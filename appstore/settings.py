@@ -23,21 +23,22 @@ APPSTORE_USER_AGENT = 'AppStore/2.0 iOS/14.4.2 model/iPhone11,2 (6; dt:185)'
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 1
+# CONCURRENT_REQUESTS = 1
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 1
+DOWNLOAD_DELAY = 0.51
 # The download delay setting will honor only one of:
-CONCURRENT_REQUESTS_PER_DOMAIN = 1
-CONCURRENT_REQUESTS_PER_IP = 1
+# CONCURRENT_REQUESTS_PER_DOMAIN = 1
+# CONCURRENT_REQUESTS_PER_IP = 1
 
 # Disable cookies (enabled by default)
 # COOKIES_ENABLED = False
 
 # Enable IPv6 support
-DNS_RESOLVER = 'scrapy.resolver.CachingHostnameResolver'
+# Don't enable this if you don't have IPv6 or you will run into weird bugs
+# DNS_RESOLVER = 'scrapy.resolver.CachingHostnameResolver'
 
 # Disable Telnet Console (enabled by default)
 TELNETCONSOLE_ENABLED = False
@@ -60,7 +61,7 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
     'appstore.middlewares.TooManyRequestsRetryMiddleware': 777,
 }
-RETRY_HTTP_CODES = [429]
+# RETRY_HTTP_CODES = [429]
 
 
 # Enable or disable extensions
@@ -77,7 +78,7 @@ RETRY_HTTP_CODES = [429]
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-AUTOTHROTTLE_ENABLED = True
+AUTOTHROTTLE_ENABLED = False
 # The initial download delay
 AUTOTHROTTLE_START_DELAY = 1
 # The maximum download delay to be set in case of high latencies

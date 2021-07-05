@@ -30,28 +30,30 @@ class TooManyRequestsRetryMiddleware(RetryMiddleware):
             try:
                 delay = int(response.headers.get('retry-after'))
             except (TypeError, ValueError):
-                delay = 5
+                delay = 61
 
             app_id = response.url.split('/')[-1].split('?')[0]
             spider.logger.info(f'Got a 429 response for {app_id}. Sleeping {delay} secs..')
 
             # Not working. After resuming a lot of failed requests and exceptions come
             # deferred = defer.Deferred()
+            # spider.is_paused = True
             # reactor.callLater(delay, deferred.callback, None)
             # spider.crawler.engine.pause()
             # await deferred
             # spider.crawler.engine.unpause()
+            # spider.is_paused = False
             # spider.logger.info(f'Resuming for {app_id}.')
 
             # reason = response_status_message(response.status)
             # return self._retry(await deferred, reason, spider) or response
-            spider.is_paused = True
-            sleep(1)
+            spider.logger.info(f'spider.is_paused: {spider.is_paused}')
             self.crawler.engine.pause()
-            sleep(delay)  # If the rate limit is renewed in a minute, put 60 seconds, and so on.
-            self.crawler.engine.unpause()
-            sleep(1)
+            spider.is_paused = True
+            sleep(delay)
+            # sleep(delay)  # If the rate limit is renewed in a minute, put 60 seconds, and so on.
             spider.is_paused = False
+            self.crawler.engine.unpause()
             reason = response_status_message(response.status)
             return self._retry(request, reason, spider) or response
         elif response.status in self.retry_http_codes:
