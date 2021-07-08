@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import json
 import argparse
 
@@ -17,8 +19,8 @@ if not (args.all or args.json or args.all_ids or args.popular_ids):
     parser.error('No file will be saved. Add at least one file type')
 
 data = {}
-all_popular_apps_ids = []
-all_apps_ids = []
+all_popular_apps_ids = set()
+all_apps_ids = set()
 
 print('Reading input...')
 with open(args.input) as f:
@@ -30,21 +32,36 @@ with open(args.input) as f:
             data[category_id] = {}
 
         if 'apps' in jl:
-            all_apps_ids.extend(jl['apps'])
+            all_apps_ids.update(jl['apps'])
             if 'apps' not in data[category_id]:
-                data[category_id]['apps'] = []
-            data[category_id]['apps'].extend(jl['apps'])
+                data[category_id]['apps'] = set()
+            data[category_id]['apps'].update(jl['apps'])
 
         elif 'popular-apps' in jl:
-            all_popular_apps_ids.extend(jl['popular-apps'])
-            # data[category_id]['popular-apps'] = jl['popular-apps']
+            all_popular_apps_ids.update(jl['popular-apps'])
+            data[category_id]['popular-apps'] = list(set(jl['popular-apps']))
+
+            # add popular apps also to all apps
+            all_apps_ids.update(jl['popular-apps'])
+            if 'apps' not in data[category_id]:
+                data[category_id]['apps'] = set()
+            data[category_id]['apps'].update(jl['popular-apps'])
         else:
             print('Unknown data:', jl)
 
+# convert set to list
+for category_id in data:
+    try:
+        s = data[category_id]['apps']
+        data[category_id]['apps'] = list(s)
+    except KeyError:
+        pass
+
 if args.sort:
-    print('Sort ids')
-    all_popular_apps_ids.sort()
-    all_apps_ids.sort()
+    print('Sort...')
+    all_popular_apps_ids = sorted(all_popular_apps_ids)
+    all_apps_ids = sorted(all_apps_ids)
+
 
 print('Writing to files...')
 if args.json or args.all:

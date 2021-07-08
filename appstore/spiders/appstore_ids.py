@@ -19,7 +19,7 @@ class AppstoreIDsSpider(scrapy.Spider):
 
     def start_requests(self):
         print('\nStarting')
-        country = getattr(self, 'country', 'us')
+        self.country = getattr(self, 'country', 'us')
         saveurls = getattr(self, 'saveurls', None)
         if saveurls is None or saveurls.lower() == 'false':
             self._saveurls = False
@@ -33,12 +33,14 @@ class AppstoreIDsSpider(scrapy.Spider):
         self._apps = 0
         self._pages = 0
 
-        self.logger.info(f'Crawling the appstore for country "{country}"')
+        self.logger.info(f'Crawling the appstore for country "{self.country}"')
         self.logger.info(f'saveurls is set to {self._saveurls}')
-        explanation = '(0: max (default), 1: categories only, 2: also popular apps, 3+: also all apps)<'
+        explanation = '(0: max (default), 1: categories only, 2: also popular apps, 3+: also all apps)'
         self.logger.info(f'level is set to {self._level} {explanation}')
 
-        url = f'https://apps.apple.com/{country}/genre/ios/id36'
+        self.download_delay = self.settings['DOWNLOAD_DELAY_IDS']
+        self.logger.info(f'Download delay is {self.download_delay} seconds')
+        url = f'https://apps.apple.com/{self.country}/genre/ios/id36'
         yield scrapy.Request(url, self.parse_main)
 
     def parse_main(self, response):

@@ -40,7 +40,7 @@ class AppstoreMetaSpider(scrapy.Spider):
         self._amp_dir = os.path.join(self._outputdir, 'amp')
         self._ua_dir = os.path.join(self._outputdir, 'ua')
 
-        # load amp done
+        # load ids that are already done via amp
         try:
             (_, _, filenames_amp) = next(os.walk(self._amp_dir))
         except StopIteration:
@@ -57,7 +57,7 @@ class AppstoreMetaSpider(scrapy.Spider):
         self._num_ids_amp = len(self._ids_amp)
         self._num_ids_amp_done = 0
 
-        # load ua done
+        # load ids that are already done via ua
         try:
             (_, _, filenames_ua) = next(os.walk(self._ua_dir))
         except StopIteration:
@@ -84,9 +84,23 @@ class AppstoreMetaSpider(scrapy.Spider):
         self._country = getattr(self, 'country', 'us')
         self._platform = getattr(self, 'platform', 'iphone')
         self._locale = getattr(self, 'locale', 'en-US')
+        use_UA = getattr(self, 'use_UA', False)
+        if use_UA is False or use_UA.lower() == 'false':
+            self._use_UA = False
+        elif use_UA.lower() == 'true':
+            self._use_UA = True
+
+        amp_single = getattr(self, 'amp_single', False)
+        if amp_single is False or amp_single.lower() == 'false':
+            self._amp_single = False
+        elif amp_single.lower() == 'true':
+            self._amp_single = True
+            self.download_delay = self.settings['DOWNLOAD_DELAY_AMP_SINGLE']
+            self.logger.info(f'Download delay is {self.download_delay} seconds')
 
         self.logger.info(f'User-Agent is "{self._UA}"')
-        self.logger.info(f'Parameters: country: {self._country} platform: {self._platform} locale: {self._locale}')
+        self.logger.info(f'Parameters: country: {self._country}, platform: {self._platform}, locale: {self._locale}')
+        self.logger.info(f'Parameters: use_UA: {self._use_UA}, amp_single: {self._amp_single}')
 
         # get token for amp api
         # app_id doesn't matter but has to be valid (using id of WhatsApp now)
@@ -108,34 +122,29 @@ class AppstoreMetaSpider(scrapy.Spider):
         base_url_ua = f'https://apps.apple.com/{self._country}/app/'
         header_ua = {'User-Agent': self._UA}
 
-        while len(self._ids_amp) > 1 or len(self._ids_ua) > 1:
-            if len(self._ids_ua) > 1:
+        while len(self._ids_amp) > 1 or (self._use_UA and len(self._ids_ua) > 1):
+            if self._use_UA and len(self._ids_ua) > 1:
                 app_id = self._ids_ua.pop()
                 url_ua = base_url_ua + 'id' + str(app_id)
                 yield scrapy.Request(url_ua, self.parse_ua, headers=header_ua)
 
             if len(self._ids_amp) > 1:
-                app_ids = set()
-                # get 100 ids
-                for ids in range(0, 100):
-                    try:
-                        app_ids.add(str(self._ids_amp.pop()))
-                    except KeyError:
-                        pass
-                url_amp = base_url_amp + '?' + self.get_params(ids=app_ids)
+                if self._amp_single:
+                    app_id = self._ids_amp.pop()
+                    url_amp = base_url_amp + '/' + str(app_id) + '?' + self.get_params()
+                else:
+                    app_ids = set()
+                    # get 100 ids
+                    for ids in range(0, 100):
+                        try:
+                            app_ids.add(str(self._ids_amp.pop()))
+                        except KeyError:
+                            pass
+                    url_amp = base_url_amp + '?' + self.get_params(ids=app_ids)
                 yield scrapy.Request(url_amp, self.parse_amp, headers=header_auth)
+
             # self.logger.debug(f'Added {done}/{len(self._ids)} requests to queue')
-        print('\n\nQueue done!\n\n')
-
-        # for left_id in range(0, len(self._ids), 100):
-        #     right_id = left_id + 99
-        #     if right_id > len(self._ids) - 1:
-        #         right_id = len(self._ids) - 1
-
-        #     id_str = ",".join(str(self._ids[idx]) for idx in range(left_id, right_id + 1))
-        #     url_amp = base_url_amp + id_str + '&' + params
-
-        #     yield scrapy.Request(url_amp, self.parse_amp, headers=header_auth)
+        print('\n\nAll requests added to queue!\n\n')
 
     def parseJWT(self, response):
         content = response.xpath("//meta[@name='web-experience-app/config/environment']/@content").get()
