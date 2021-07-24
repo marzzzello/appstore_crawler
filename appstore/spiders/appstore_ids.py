@@ -57,8 +57,9 @@ class AppstoreIDsSpider(scrapy.Spider):
             )
 
         main_categories_without_sub_urls = response.css('a.top-level-genre:only-child::attr(href)').getall()
-        # main_categories_with_sub = response.css('a.top-level-genre:not(:only-child)::attr(href)').getall()
+        main_categories_with_sub = response.css('a.top-level-genre:not(:only-child)::attr(href)').getall()
         # subcategories = response.css('ul.top-level-subgenres a::attr(href)').getall()
+        sub_categories_urls = []
 
         # main categorie that has multiple subcategories
         for categorie in response.css('a.top-level-genre:not(:only-child)'):
@@ -71,6 +72,7 @@ class AppstoreIDsSpider(scrapy.Spider):
                         'url': subcat.attrib['href'],
                     }
                 )
+                sub_categories_urls.append(subcat.attrib['href'])
 
             categories.append(
                 {
@@ -85,6 +87,12 @@ class AppstoreIDsSpider(scrapy.Spider):
 
         if self._level != 1:
             for url in main_categories_without_sub_urls:
+                url = response.urljoin(url)
+                yield scrapy.Request(url, callback=self.parse_categorie)
+            for url in sub_categories_urls:
+                url = response.urljoin(url)
+                yield scrapy.Request(url, callback=self.parse_categorie)
+            for url in main_categories_with_sub:
                 url = response.urljoin(url)
                 yield scrapy.Request(url, callback=self.parse_categorie)
 
@@ -110,7 +118,7 @@ class AppstoreIDsSpider(scrapy.Spider):
                 yield scrapy.Request(url, callback=self.parse_categorie_letter)
 
     def parse_categorie_letter(self, response):
-        cat_id, end = response.url.split('/id')[1].split('?letter=')
+        cat_id, end = response.url.split('/id')[-1].split('?letter=')
         if len(end) == 1:
             letter = end
             page = '0'
@@ -119,7 +127,7 @@ class AppstoreIDsSpider(scrapy.Spider):
 
         print(f'Parsing {cat_id} {letter} {page:>3};', end=' ')
         print(
-            f'Done {num_fmt(self._pages):>4}/~15k pages, {num_fmt(self._apps):>5}/~1.6M apps   ',
+            f'Done {num_fmt(self._pages):>4}/~20k pages, {num_fmt(self._apps):>5}/~2.3M apps   ',
             end='\r',
         )
 

@@ -8,17 +8,18 @@
 [![commit-activity](https://img.shields.io/github/commit-activity/m/marzzzello/appstore_crawler.svg?style=for-the-badge)](https://img.shields.io/github/commit-activity/m/marzzzello/appstore_crawler.svg?style=for-the-badge)
 [![Mastodon Follow](https://img.shields.io/mastodon/follow/103207?domain=https%3A%2F%2Fsocial.tchncs.de&logo=mastodon&style=for-the-badge)](https://social.tchncs.de/@marzzzello)
 
-# Apple Appstore Crawler
+# Apple App Store Crawler
 
-This crawler is based on [scrapy](https://docs.scrapy.org/en/latest/) and can download the IDs of all apps in appstore.
+This crawler is based on [scrapy](https://docs.scrapy.org/en/latest/) and can download the IDs of all apps in the Apple App Store.
 It can also download the metadata for a list of IDs.
 
 ### Get IDs
 
 The crawler uses `https://apps.apple.com/{country}/genre/ios/id36` to get the categories and IDs by crawling all categories, letters and pages.
+Since the webserver has no rate limiting, it is not needed to set a delay. A full crawl needs about 20 minutes (10-15 pages/second).
 
 ```sh
-scrapy crawl -L INFO appstore_ids -a saveurls=False -a country=us -a level=1 -O out_ids.jl
+scrapy crawl -L INFO appstore_ids -a saveurls=False -a country=us -a level=0 -O out_ids.jl
 ```
 
 Parameters:
@@ -100,3 +101,4 @@ DOWNLOAD_DELAY_IDS = 0.0
 ```
 
 The default delays are tested and should work well.
+With the amp multi method and default settings the retrieval of metadata for 1 million apps needs about 3 hours.

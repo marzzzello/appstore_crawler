@@ -122,13 +122,13 @@ class AppstoreMetaSpider(scrapy.Spider):
         base_url_ua = f'https://apps.apple.com/{self._country}/app/'
         header_ua = {'User-Agent': self._UA}
 
-        while len(self._ids_amp) > 1 or (self._use_UA and len(self._ids_ua) > 1):
-            if self._use_UA and len(self._ids_ua) > 1:
+        while len(self._ids_amp) > 0 or (self._use_UA and len(self._ids_ua) > 0):
+            if self._use_UA and len(self._ids_ua) > 0:
                 app_id = self._ids_ua.pop()
                 url_ua = base_url_ua + 'id' + str(app_id)
                 yield scrapy.Request(url_ua, self.parse_ua, headers=header_ua)
 
-            if len(self._ids_amp) > 1:
+            if len(self._ids_amp) > 0:
                 if self._amp_single:
                     app_id = self._ids_amp.pop()
                     url_amp = base_url_amp + '/' + str(app_id) + '?' + self.get_params()
@@ -263,7 +263,7 @@ class AppstoreMetaSpider(scrapy.Spider):
             'limit[reviews]': 20,
             'l': self._locale,
         }
-        if ids is {}:
+        if ids == {}:
             del params['ids']
         else:
             del params['include']
