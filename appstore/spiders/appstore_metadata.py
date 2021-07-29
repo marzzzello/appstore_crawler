@@ -125,10 +125,10 @@ class AppstoreMetaSpider(scrapy.Spider):
         while len(self._ids_amp) > 0 or (self._use_UA and len(self._ids_ua) > 0):
             if self._use_UA and len(self._ids_ua) > 0:
                 app_id = self._ids_ua.pop()
-                url_ua = base_url_ua + 'id' + str(app_id)
+                url_ua = base_url_ua + 'id' + str(app_id) + '?l=' + self._locale
                 yield scrapy.Request(url_ua, self.parse_ua, headers=header_ua)
 
-            if len(self._ids_amp) > 0:
+            elif len(self._ids_amp) > 0:
                 if self._amp_single:
                     app_id = self._ids_amp.pop()
                     url_amp = base_url_amp + '/' + str(app_id) + '?' + self.get_params()
@@ -158,7 +158,7 @@ class AppstoreMetaSpider(scrapy.Spider):
         except AttributeError:
             os.makedirs(self._ua_dir, exist_ok=True)
             self._ua_dir_exists = True
-        app_id = response.url.split('/')[-1].lstrip('id')
+        app_id = response.url.split('/')[-1].lstrip('id').split('?')[0]
         filename = os.path.join(self._ua_dir, app_id + '.json')
         with open(filename, 'wb') as f:
             f.write(response.body)

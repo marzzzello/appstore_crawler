@@ -13,10 +13,20 @@
 This crawler is based on [scrapy](https://docs.scrapy.org/en/latest/) and can download the IDs of all apps in the Apple App Store.
 It can also download the metadata for a list of IDs.
 
+## Setup
+
+Install scrapy:
+
+```sh
+pip install scrapy
+```
+
+## Usage
+
 ### Get IDs
 
 The crawler uses `https://apps.apple.com/{country}/genre/ios/id36` to get the categories and IDs by crawling all categories, letters and pages.
-Since the webserver has no rate limiting, it is not needed to set a delay. A full crawl needs about 20 minutes (10-15 pages/second).
+Since the webserver has no rate limiting, it is not needed to set a delay. A full crawl needs about 30 minutes (10-15 pages/second).
 
 ```sh
 scrapy crawl -L INFO appstore_ids -a saveurls=False -a country=us -a level=0 -O out_ids.jl
@@ -24,7 +34,7 @@ scrapy crawl -L INFO appstore_ids -a saveurls=False -a country=us -a level=0 -O 
 
 Parameters:
 
-- `country`: 2 letters country shortcode (default: `us`)
+- `country`: Two letter country code (default: `us`)
 - `saveurls`: In addition to the ID also save the url for each app (default: `False`)
 - `level`: Crawling level:
   - `0`: max (default)
