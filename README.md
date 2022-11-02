@@ -13,6 +13,10 @@
 This crawler is based on [scrapy](https://docs.scrapy.org/en/latest/) and can download the IDs of all apps in the Apple App Store.
 It can also download the metadata for a list of IDs.
 
+## Unmaintained
+
+This project is not working as Apple changed their website and API. So it is not easily fixable and I don't plan on working on this project.
+
 ## Setup
 
 Install scrapy:
